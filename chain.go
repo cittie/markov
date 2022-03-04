@@ -16,6 +16,7 @@ type Chain struct {
 
 type Status struct {
 	name   string
+	total  int64
 	ratios []int64
 }
 
@@ -127,10 +128,16 @@ func (mc *Chain) Next() int {
 // Status 相关接口实现
 
 func NewStatus(name string, ratio []int64) *Status {
-	return &Status{
+	s := &Status{
 		name:   name,
 		ratios: ratio,
 	}
+
+	for _, r := range ratio {
+		s.total += r
+	}
+
+	return s
 }
 
 func (s Status) String() string {
@@ -150,6 +157,7 @@ func (s *Status) Del(idx int) {
 		return
 	}
 
+	s.total -= s.ratios[idx]
 	s.ratios = append(s.ratios[:idx], s.ratios[idx+1:]...)
 }
 
@@ -164,11 +172,7 @@ func (s *Status) Rand() int {
 		return -1
 	}
 
-	var total int64
-	for i := 0; i < len(s.ratios); i++ {
-		total += s.ratios[i]
-	}
-
+	total := s.total
 	n := Int63n(total)
 
 	for i := 0; i < len(s.ratios); i++ {
@@ -182,10 +186,16 @@ func (s *Status) Rand() int {
 }
 
 func (s *Status) AddRate(rate int64) {
+	s.total += rate
 	s.ratios = append(s.ratios, rate)
 }
 
 // SetRatio 直接赋值
 func (s *Status) SetRatio(ratios []int64) {
 	s.ratios = ratios
+
+	s.total = 0
+	for _, r := range ratios {
+		s.total += r
+	}
 }

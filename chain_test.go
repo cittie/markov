@@ -8,7 +8,7 @@ import (
 )
 
 func TestStatus_Rand(t *testing.T) {
-	s := &Status{ratios: []int64{1, 2, 3, 4}}
+	s := NewStatus("", []int64{1, 2, 3, 4})
 
 	t.Run("Ratios", func(t *testing.T) {
 		counts := make(map[int]int, 4)
@@ -28,15 +28,16 @@ func TestStatus_Rand(t *testing.T) {
 }
 
 func TestChain_Next(t *testing.T) {
-	chain := &Chain{
-		curStatus: 0,
-		status: []IStatus{
-			&Status{ratios: []int64{0, 4, 4, 9}},
-			&Status{ratios: []int64{1, 0, 4, 9}},
-			&Status{ratios: []int64{1, 4, 0, 9}},
-			&Status{ratios: []int64{1, 4, 4, 0}},
-		},
-	}
+	chain := NewChain()
+
+	assert.Nil(t, chain.SetStatus([]IStatus{
+		NewStatus("", []int64{0, 4, 4, 9}),
+		NewStatus("", []int64{1, 0, 4, 9}),
+		NewStatus("", []int64{1, 4, 0, 9}),
+		NewStatus("", []int64{1, 4, 4, 0}),
+	}))
+
+	assert.Nil(t, chain.SetCurStatusIdx(0))
 
 	// 上面设置了所有条件矩阵都不能跳回自身
 	for i := 0; i < 1000; i++ {
@@ -72,15 +73,20 @@ func BenchmarkChain_Next(b *testing.B) {
 
 	status := make([]IStatus, 16)
 	for i := 0; i < 16; i++ {
-		status[i] = &Status{ratios: r}
+		status[i] = NewStatus("", r)
 	}
 
 	chain := &Chain{
 		curStatus: 0,
-		status:    status,
 	}
 
-	for i := 0; i < b.N; i++ {
-		chain.Next()
-	}
+	chain.SetStatus(status)
+
+	b.Run("Next", func(b *testing.B) {
+		b.ReportAllocs()
+
+		for i := 0; i < b.N; i++ {
+			chain.Next()
+		}
+	})
 }
