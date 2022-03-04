@@ -182,7 +182,7 @@ func (s *Status) Rand() int {
 		n -= s.ratios[i]
 	}
 
-	return len(s.ratios)
+	return len(s.ratios) - 1
 }
 
 func (s *Status) AddRate(rate int64) {
