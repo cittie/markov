@@ -1,10 +1,11 @@
 package markov
 
 import (
-	"math/rand"
+	"fmt"
 )
 
 /*
+	不支持并发
 	概率用整数表示
 */
 
@@ -14,17 +15,29 @@ type Chain struct {
 }
 
 type Status struct {
+	name   string
 	ratios []int64
 }
 
-// Chain
-
-// NewChain
 func NewChain() *Chain {
 	return &Chain{
-		curStatus: -1,
+		curStatus: StatusNotAvailable,
 		status:    make([]IStatus, 0, 16),
 	}
+}
+
+// Chain 相关接口实现
+
+func (mc *Chain) SetStatus(status []IStatus) error {
+	for _, s := range status {
+		if s.Len() != len(status) {
+			return ErrInvalidStatus
+		}
+	}
+
+	mc.status = status
+
+	return nil
 }
 
 func (mc *Chain) ListStatus() []IStatus {
@@ -38,16 +51,20 @@ func (mc *Chain) GetStatus(idx int) (IStatus, error) {
 	return mc.status[idx], nil
 }
 
-func (mc *Chain) AddStatus(status IStatus) error {
+func (mc *Chain) AddStatus(status IStatus, rates []int64) error {
 	if status.Len() != len(mc.status)+1 {
 		return ErrInvalidStatus
 	}
 
-	mc.status = append(mc.status, status)
-
-	for _, s := range mc.status {
-		s.Increase()
+	if len(rates) != len(mc.status) {
+		return ErrInvalidRates
 	}
+
+	for i, s := range mc.status {
+		s.AddRate(rates[i])
+	}
+
+	mc.status = append(mc.status, status)
 
 	return nil
 }
@@ -73,7 +90,7 @@ func (mc *Chain) DelStatus(idx int) {
 
 	// 删除整行
 	if mc.curStatus == idx {
-		mc.curStatus = -1
+		mc.curStatus = StatusNotAvailable
 	}
 
 	mc.status = append(mc.status[:idx], mc.status[idx+1:]...)
@@ -99,16 +116,32 @@ func (mc *Chain) SetCurStatusIdx(idx int) error {
 }
 
 func (mc *Chain) Next() int {
-	if mc.curStatus == -1 {
-		return -1
+	if mc.curStatus == StatusNotAvailable {
+		return StatusNotAvailable
 	}
 
 	mc.curStatus = mc.status[mc.curStatus].Rand()
 	return mc.curStatus
 }
 
-// Status
-func (s *Status) Len() int {
+// Status 相关接口实现
+
+func NewStatus(name string, ratio []int64) *Status {
+	return &Status{
+		name:   name,
+		ratios: ratio,
+	}
+}
+
+func (s Status) String() string {
+	return fmt.Sprintf("[name:%s, ratios:%v]", s.name, s.ratios)
+}
+
+func (s Status) GetName() string {
+	return s.name
+}
+
+func (s Status) Len() int {
 	return len(s.ratios)
 }
 
@@ -120,8 +153,8 @@ func (s *Status) Del(idx int) {
 	s.ratios = append(s.ratios[:idx], s.ratios[idx+1:]...)
 }
 
-func (s *Status) ShowStatus() string {
-	return ""
+func (s Status) ShowRation() string {
+	return fmt.Sprintf("%v", s.ratios)
 }
 
 // Rand
@@ -136,7 +169,7 @@ func (s *Status) Rand() int {
 		total += s.ratios[i]
 	}
 
-	n := rand.Int63n(total)
+	n := Int63n(total)
 
 	for i := 0; i < len(s.ratios); i++ {
 		if n < s.ratios[i] {
@@ -148,8 +181,8 @@ func (s *Status) Rand() int {
 	return len(s.ratios)
 }
 
-func (s *Status) Increase() {
-	s.ratios = append(s.ratios, 0)
+func (s *Status) AddRate(rate int64) {
+	s.ratios = append(s.ratios, rate)
 }
 
 // SetRatio 直接赋值

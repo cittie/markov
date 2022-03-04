@@ -1,6 +1,7 @@
 package markov
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -10,7 +11,7 @@ func TestStatus_Rand(t *testing.T) {
 	s := &Status{ratios: []int64{1, 2, 3, 4}}
 
 	t.Run("Ratios", func(t *testing.T) {
-		counts := make(map[int]int)
+		counts := make(map[int]int, 4)
 
 		for i := 0; i < 10000; i++ {
 			counts[s.Rand()] += 1
@@ -21,6 +22,8 @@ func TestStatus_Rand(t *testing.T) {
 			r := (k+1)*1000 - v
 			assert.True(t, r < 100 || r > -100)
 		}
+
+		t.Logf("counts: %v", counts)
 	})
 }
 
@@ -39,6 +42,25 @@ func TestChain_Next(t *testing.T) {
 	for i := 0; i < 1000; i++ {
 		assert.True(t, chain.CurStatusIdx() != chain.Next())
 	}
+}
+
+func TestChainCreate(t *testing.T) {
+	ch := NewChain()
+	assert.Nil(t, ch.AddStatus(NewStatus("line1", []int64{1}), []int64{}))
+	assert.Nil(t, ch.AddStatus(NewStatus("line2", []int64{1, 1}), []int64{2}))
+	assert.Nil(t, ch.AddStatus(NewStatus("line3", []int64{0, 3, 3}), []int64{4, 5}))
+	assert.Nil(t, ch.AddStatus(NewStatus("line4", []int64{4, 3, 2, 1}), []int64{9, 6, 3}))
+
+	t.Logf("chain status: %v", ch.ListStatus())
+
+	assert.Nil(t, ch.SetCurStatusIdx(0))
+
+	for i := 0; i < 20; i++ {
+		n := ch.Next()
+		fmt.Println(n)
+	}
+
+	fmt.Println(ch.CurStatusIdx())
 }
 
 func BenchmarkChain_Next(b *testing.B) {
